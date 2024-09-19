@@ -14,6 +14,8 @@ include_directories (${PROJECT_SOURCE_DIR}
 					 )
 # Sources
 set(SRCS
+
+	${PROJECT_SOURCE_DIR}/src/crc-itu-t.c
 	${PROJECT_SOURCE_DIR}/src/up3d_dat_pro.c	
 	${PROJECT_SOURCE_DIR}/src/lwrb.c	
 	${PROJECT_SOURCE_DIR}/src/server.c

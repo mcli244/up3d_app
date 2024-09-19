@@ -1,8 +1,19 @@
 #include "up3d_dat_pro.h"
 #include "up3d.h"
+#include "crc-itu-t.h"
 
-int _make_respond_msg(uint16_t cmd, uint8_t *dat, uint32_t len, SERVER_DATA_Typedef *txdat, uint32_t *txdat_cnt)
+#define MAGIC_CRC           0x1E50
+
+char *get_local_ip_str(void)
 {
+    return "192.168.8.110";
+}
+
+static int _make_respond_msg(uint16_t cmd, uint8_t *dat, uint32_t len, 
+                            SERVER_DATA_Typedef *txdat, uint32_t *txdat_cnt)
+{
+    uint16_t crc16 = 0;
+
     txdat->head = DATA_HEADER;
     txdat->cmd = UP3D_CMD_BROADCAST;
     txdat->len = len;
@@ -10,16 +21,29 @@ int _make_respond_msg(uint16_t cmd, uint8_t *dat, uint32_t len, SERVER_DATA_Type
         memcpy(txdat->dat, dat, len);
     
     // crc 2B
-    txdat->dat[len] = 0xfd;
-    txdat->dat[len+1] = 0xff;
+    crc16 = crc_itu_t(MAGIC_CRC, (uint8_t *)&txdat, SERVER_DATA_HEAD_SIZE + len);
+    txdat->dat[len] = crc16>>8 & 0xff;
+    txdat->dat[len+1] = crc16 & 0xff;
 
     *txdat_cnt = SERVER_DATA_HEAD_SIZE + len + 2;
     return 0;
 }
 
+int boardcast_pro(SERVER_DATA_Pro_Typedef *pDat)
+{
+    int ret = -1;
+    int len = 0;
+    char buf[64] = {0};
+
+    len = sprintf(buf, "%s:%d", get_local_ip_str(), UP_SERVER_PORT);
+    return _make_respond_msg(UP3D_CMD_BROADCAST, buf, len, (SERVER_DATA_Typedef *)pDat->txdat, &pDat->txcnt);
+}
+
+
 int dat_pro(SERVER_DATA_Pro_Typedef *pDat)
 {
     int ret = -1;
+    
     SERVER_CTX_Typedef  *ctx    = (SERVER_CTX_Typedef *)pDat->ctx;
     SERVER_DATA_Typedef *rxdat  = (SERVER_DATA_Typedef *)pDat->rxdat;
     SERVER_DATA_Typedef *txdat  = (SERVER_DATA_Typedef *)pDat->txdat;
@@ -45,7 +69,7 @@ int dat_pro(SERVER_DATA_Pro_Typedef *pDat)
     {
         case UP3D_CMD_BROADCAST:
             pDat->respond = 1;
-            ret = _make_respond_msg(UP3D_CMD_BROADCAST, "192.168.8.110:9001", strlen("192.168.8.110:9001"), txdat, &pDat->txcnt);
+            ret = boardcast_pro(pDat);
             break;
         default:
             break;
