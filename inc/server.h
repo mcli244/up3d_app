@@ -1,77 +1,37 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-//定义日志级别
-typedef enum  {    
-    _LOG_OFF=0,
-    _LOG_FATAL,
-    _LOG_ERR,
-    _LOG_WARN,
-    _LOG_INFO,
-    _LOG_DEBUG,
-    _LOG_ALL
-}LOG_LEVEL;
+#include <netinet/in.h>
+#include <semaphore.h>
+#include "lwrb.h"
 
-#define UP_LOG_ENABLE   /* 日志模块总开关，注释掉将关闭日志输出 */
-#define UP_LOG_LEVEL    _LOG_ALL /* 日志输出控制，小于等于UP_LOG_LEVEL等级的日志被输出 */
-#define NEWLINE_SIGN    "\n"
+#define UP_SERVER_PORT  9001
+#define SERVER_RX_BUF   1024
+#define SERVER_TX_BUF   1024
 
-FILE *log_fd;
-int log_tmp_fd;
-char* get_stime(void);
+typedef struct
+{
+    uint8_t *rx_buf;
+    uint8_t *tx_buf;
+    sem_t rx_sem;
+    sem_t tx_sem;
+    lwrb_t rx_lwrb;
+    lwrb_t tx_lwrb;
+    int fd;
+    uint8_t is_connected;
+    struct sockaddr_in clientaddr;
+}SERVER_CTX_Typedef;
 
-#ifdef UP_LOG_ENABLE
+typedef struct
+{
+    uint16_t head;
+    uint16_t cmd;
+    uint32_t len;
+    uint8_t dat[1];
+}SERVER_DATA_Typedef;
 
-#define DEBUG(format, ...) \
-    do { \
-        printf (format, ##__VA_ARGS__); \
-        if(log_fd) \
-        { \
-            fprintf(log_fd, format, ##__VA_ARGS__);\
-            fflush(log_fd); \
-        } \
-    } while (0)
-#else
-    #define DEBUG(format, ...)
-#endif
+#define SERVER_DATA_HEAD_SIZE 8
 
-#define _LOG_INIT(logFile)\
-    do { \
-        log_fd = fopen (logFile, "w+"); \
-        if (log_fd == NULL) \
-        { \
-            printf("log file [%s] open failed\n", logFile); \
-        } \
-    } while (0)
-
-#define _LOG_CLOSE()\
-    do { \
-        fclose(log_fd);\
-        log_fd = NULL; \
-    } while (0)
-
-#define _LOG_CLEAN()\
-    do { \
-        log_tmp_fd = fileno(log_fd); \
-        ftruncate(log_tmp_fd, 0); \
-    } while (0)
-
-#define _LOG(level, format, ...)\
-    do { \
-         if(level<=UP_LOG_LEVEL){\
-            if(level==_LOG_DEBUG){\
-                DEBUG("D|[%s] %s:%d(%s)|"format"%s", get_stime(), __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__, NEWLINE_SIGN);\
-            }else if(level==_LOG_INFO){\
-                DEBUG("I|[%s] "format"%s", get_stime(), ##__VA_ARGS__, NEWLINE_SIGN);\
-            }else if(level==_LOG_WARN){\
-                DEBUG("W|[%s] "format"%s", get_stime(), ##__VA_ARGS__, NEWLINE_SIGN);\
-            }else if(level==_LOG_ERR){\
-                DEBUG("E|[%s] "format"%s", get_stime(), ##__VA_ARGS__, NEWLINE_SIGN);\
-            }else if(level==_LOG_FATAL){\
-                DEBUG("F|[%s] "format"%s", get_stime(), ##__VA_ARGS__, NEWLINE_SIGN);\
-            }\
-         } \
-    } while (0)
 
 void server_init(void);
 int server_loop(void);
